@@ -1,0 +1,73 @@
+stages:
+  - style
+  - build
+  - test
+  - deploy
+
+styles:
+  stage: style
+  tags: [style]
+  script:
+    - echo "Start clang checking"
+    - cd src/cat
+    - clang-format -n *.c *.h
+    - clang-format -i *.c *.h
+    - git diff --exit-code
+    - cd ../grep
+    - clang-format -n *.c *.h
+    - clang-format -i *.c *.h
+    - git diff --exit-code
+  after_script:
+    - bash src/tm.sh
+
+builds:
+  stage: build
+  tags: [build]
+  script:
+    - echo "Start building"
+    - cd src/cat
+    - make 
+    - cd ../grep
+    - make 
+  artifacts:
+    paths:
+      - src/cat/s21_cat
+      - src/grep/s21_grep
+    expire_in: 30 days
+  after_script:
+    - bash src/tm.sh
+
+tests:
+  stage: test
+  tags: [test]
+  needs: ["styles", "builds"]
+  script:
+    - cd src/cat
+    - output=$(make tests)
+    - echo "Test CAT"
+    - if ! echo "$output" | grep -q "Error"; then
+        echo "CAT OK";
+      else
+        exit 1;
+      fi
+    - cd ../grep
+    - output=$(make tests)
+    - echo "Test GREP"
+    - if ! echo "$output" | grep -q "Error"; then
+        echo "GREP OK";
+      else
+        exit 1;
+      fi
+  after_script:
+    - bash src/tm.sh
+
+deploys:
+  stage: deploy
+  tags: [deploy]
+  needs: ["styles", "builds", "tests"]
+  script:
+    - chmod +x src/deploy.sh
+    - bash src/deploy.sh
+  when: manual
+  after_script:
+    - bash src/tm.sh
