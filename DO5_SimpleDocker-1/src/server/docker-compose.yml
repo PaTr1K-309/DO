@@ -1,0 +1,12 @@
+services:
+  server:
+    build: .
+    ports:
+      - "81:81"
+  proxy_pass:
+    image: nginx:latest
+    ports:
+      - "80:8080"
+    volumes:
+      - ./ser/nginx.conf:/etc/nginx/nginx.conf
+    #container_name: ser
